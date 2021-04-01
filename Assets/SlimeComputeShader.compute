@@ -1,14 +1,94 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
+#pragma kernel RandomTest
+#pragma kernel Update
+#pragma kernel ProcessTrailMap
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
+struct Agent {
+    float2 position;
+    float angle;
+};
+
+RWTexture2D<float4> RandomTestTexture;
 RWTexture2D<float4> Result;
+
+uint width;
+uint height;
+
+uint numAgents;
+RWStructuredBuffer<Agent> agents;
+RWTexture2D<float4> TrailMap;
+RWTexture2D<float4> ProcessedTrailMap;
+
+float moveSpeed;
+float deltaTime = 1;
+float PI = 3.1415926535;
+float newRandomAngle;
+
+float evaporateSpeed;
+
+
+uint hash(uint state) {
+    state ^= 2747636419u;
+    state *= 2654435769u;
+    state ^= state >> 16;
+    state *= 2654435769u;
+    state ^= state >> 16;
+    state *= 2654435769u;
+    return state;
+}
+
+float scaleToRange(uint value) {
+    // Resolver
+    float result = 4294967295.0/value;
+    return result;
+}
+
+[numthreads(8, 8, 1)]
+void RandomTest(uint3 id : SV_DispatchThreadID) {
+    if (id.x < 0 || id.x >= width || id.y < 0 || id.y >= height) { return; }
+    int pixelIndex = id.y * width + id.x;
+    uint pseudoRandomNumber = hash(pixelIndex);
+    RandomTestTexture[id.xy] = pseudoRandomNumber / 4294967295.0;
+}
+
+[numthreads(8,8,1)]
+void Update (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numAgents) { return; }
+
+    Agent agent = agents[id.x];
+    uint random = hash(agent.position.y * width + agent.position.x + hash(id.x));
+
+    float2 direction = float2(cos(agent.angle), sin(agent.angle));
+    float2 newPos = agent.position + direction * moveSpeed * deltaTime;
+
+    if(newPos.x < 0 || newPos.x >= width || newPos.y < 0 || newPos.y >= height){
+        newPos.x = min(width-0.01, max(0, newPos.x));
+        newPos.y = min(height-0.01, max(0, newPos.y));
+        agents[id.x].angle = newRandomAngle;
+    }
+
+    agents[id.x].position = newPos;
+    TrailMap[int2(newPos.x, newPos.y)] = 1;
+}
+
+[numthreads(8, 8, 1)]
+void ProcessTrailMap(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < 0 || id.x >= width || id.y < 0 || id.y >= height) { return; }
+
+    float4 origianlValue = TrailMap[id.xy];
+    float4 evaporatedValue = max(0, origianlValue - evaporateSpeed * deltaTime);
+
+    ProcessedTrailMap[id.xy] = evaporatedValue;
+}
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
     // TODO: insert actual code here!
-
     Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
 }

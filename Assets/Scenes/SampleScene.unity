@@ -162,6 +162,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: 74e926e68ce6d1c44bf2bdfde6c471c2, type: 3}
   outRenderTextrure: {fileID: 0}
+  outRenderProcessedTextrure: {fileID: 0}
+  resolution_width: 256
+  resolution_height: 256
+  numAgents: 10
+  moveSpeed: 100
+  evaporateSpeed: 0.01
 --- !u!20 &519420031
 Camera:
   m_ObjectHideFlags: 0
